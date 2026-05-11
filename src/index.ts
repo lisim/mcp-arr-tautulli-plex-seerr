@@ -515,6 +515,79 @@ if (clients.radarr) {
         required: ["tmdbId", "title", "qualityProfileId", "rootFolderPath"],
       },
     },
+    {
+      name: "radarr_update_movie",
+      description: "Update a movie in Radarr. Can change qualityProfileId, monitored status, minimumAvailability, tags, and path. Fetches the full movie object, applies your changes, and PUTs it back.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          movieId: {
+            type: "number",
+            description: "Movie ID to update",
+          },
+          qualityProfileId: {
+            type: "number",
+            description: "New quality profile ID (from radarr_get_quality_profiles)",
+          },
+          monitored: {
+            type: "boolean",
+            description: "Whether to monitor the movie",
+          },
+          minimumAvailability: {
+            type: "string",
+            enum: ["announced", "inCinemas", "released", "tba"],
+            description: "When to consider the movie available",
+          },
+          tags: {
+            type: "array",
+            items: { type: "number" },
+            description: "Replace all tags with this list of tag IDs",
+          },
+          path: {
+            type: "string",
+            description: "New file path for the movie",
+          },
+        },
+        required: ["movieId"],
+      },
+    },
+    {
+      name: "radarr_delete_queue_item",
+      description: "Remove an item from the Radarr download queue. Use radarr_get_queue to find queue item IDs. Can optionally blocklist the release to prevent re-grabbing.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          queueId: {
+            type: "number",
+            description: "Queue item ID (from radarr_get_queue)",
+          },
+          removeFromClient: {
+            type: "boolean",
+            description: "Also remove from download client (default: true)",
+          },
+          blocklist: {
+            type: "boolean",
+            description: "Add release to blocklist to prevent re-grabbing (default: false)",
+          },
+        },
+        required: ["queueId"],
+      },
+    },
+    {
+      name: "radarr_search_movies",
+      description: "Trigger a search for multiple movies at once. Accepts an array of movie IDs. Use this for bulk upgrade requests instead of calling radarr_search_movie one at a time.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          movieIds: {
+            type: "array",
+            items: { type: "number" },
+            description: "Array of movie IDs to search for",
+          },
+        },
+        required: ["movieIds"],
+      },
+    },
   );
 }
 
@@ -1106,6 +1179,7 @@ async function getPaginatedQueue(
   }
 
   const items = records.slice(offset, offset + limit).map((q) => ({
+    id: q.id,
     title: q.title,
     status: q.status,
     progress: q.size > 0 ? ((1 - q.sizeleft / q.size) * 100).toFixed(1) + "%" : "unknown",
@@ -1658,6 +1732,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 sizeOnDisk: formatBytes(m.sizeOnDisk),
                 monitored: m.monitored,
                 studio: m.studio,
+                qualityProfileId: m.qualityProfileId,
+                ...(m.movieFile ? {
+                  quality: m.movieFile.quality?.quality?.name ?? null,
+                  resolution: m.movieFile.mediaInfo?.resolution ?? null,
+                  videoCodec: m.movieFile.mediaInfo?.videoCodec ?? null,
+                  videoDynamicRange: m.movieFile.mediaInfo?.videoDynamicRange ?? null,
+                  audioCodec: m.movieFile.mediaInfo?.audioCodec ?? null,
+                  audioChannels: m.movieFile.mediaInfo?.audioChannels ?? null,
+                } : {}),
               })),
             }, null, 2),
           }],
@@ -1757,6 +1840,80 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               id: added.id,
               path: added.path,
               monitored: added.monitored,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "radarr_update_movie": {
+        if (!clients.radarr) throw new Error("Radarr not configured");
+        const { movieId, qualityProfileId, monitored, minimumAvailability, tags, path } = args as {
+          movieId: number; qualityProfileId?: number; monitored?: boolean;
+          minimumAvailability?: string; tags?: number[]; path?: string;
+        };
+        // Fetch the full movie object first
+        const movie = await clients.radarr.getMovieById(movieId);
+        // Apply updates
+        if (qualityProfileId !== undefined) movie.qualityProfileId = qualityProfileId;
+        if (monitored !== undefined) movie.monitored = monitored;
+        if (minimumAvailability !== undefined) movie.minimumAvailability = minimumAvailability;
+        if (tags !== undefined) movie.tags = tags;
+        if (path !== undefined) movie.path = path;
+        const updated = await clients.radarr.updateMovie(movie);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              message: `Updated "${updated.title}" (${updated.year})`,
+              movie: {
+                id: updated.id,
+                title: updated.title,
+                year: updated.year,
+                qualityProfileId: updated.qualityProfileId,
+                monitored: updated.monitored,
+                minimumAvailability: updated.minimumAvailability,
+                tags: updated.tags,
+                path: updated.path,
+              },
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "radarr_delete_queue_item": {
+        if (!clients.radarr) throw new Error("Radarr not configured");
+        const { queueId, removeFromClient = true, blocklist = false } = args as {
+          queueId: number; removeFromClient?: boolean; blocklist?: boolean;
+        };
+        await clients.radarr.deleteQueueItem(queueId, { removeFromClient, blocklist });
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              message: `Removed queue item ${queueId}${blocklist ? ' and added to blocklist' : ''}`,
+              queueId,
+              removedFromClient: removeFromClient,
+              blocklisted: blocklist,
+            }, null, 2),
+          }],
+        };
+      }
+
+      case "radarr_search_movies": {
+        if (!clients.radarr) throw new Error("Radarr not configured");
+        const { movieIds } = args as { movieIds: number[] };
+        if (!movieIds || movieIds.length === 0) throw new Error("movieIds array is required and must not be empty");
+        const result = await clients.radarr.searchMoviesBulk(movieIds);
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              message: `Search triggered for ${movieIds.length} movie(s)`,
+              commandId: result.id,
+              movieIds,
             }, null, 2),
           }],
         };

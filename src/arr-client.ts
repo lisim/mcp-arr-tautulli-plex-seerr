@@ -146,7 +146,24 @@ export interface Movie {
     path: string;
     size: number;
     dateAdded: string;
-    quality: { quality: { id: number; name: string } };
+    quality: { quality: { id: number; name: string; source?: string; resolution?: number } };
+    mediaInfo?: {
+      audioBitrate: number;
+      audioChannels: number;
+      audioCodec: string;
+      audioLanguages: string;
+      audioStreamCount: number;
+      videoBitDepth: number;
+      videoBitrate: number;
+      videoCodec: string;
+      videoDynamicRange: string;
+      videoDynamicRangeType: string;
+      videoFps: number;
+      resolution: string;
+      runTime: string;
+      scanType: string;
+      subtitles: string;
+    };
   };
 }
 
@@ -678,6 +695,42 @@ export class RadarrClient extends ArrClient {
         name: 'MoviesSearch',
         movieIds: [movieId],
       }),
+    });
+  }
+
+  /**
+   * Trigger a search for multiple movies at once
+   */
+  async searchMoviesBulk(movieIds: number[]): Promise<{ id: number }> {
+    return this['request']<{ id: number }>('/command', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: 'MoviesSearch',
+        movieIds,
+      }),
+    });
+  }
+
+  /**
+   * Update a movie (PUT). Used to change qualityProfileId, monitored, tags, etc.
+   */
+  async updateMovie(movie: Movie): Promise<Movie> {
+    return this['request']<Movie>(`/movie/${movie.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(movie),
+    });
+  }
+
+  /**
+   * Delete an item from the download queue
+   */
+  async deleteQueueItem(queueId: number, options: { removeFromClient?: boolean; blocklist?: boolean } = {}): Promise<void> {
+    const params = new URLSearchParams();
+    if (options.removeFromClient) params.append('removeFromClient', 'true');
+    if (options.blocklist) params.append('blocklist', 'true');
+    const query = params.toString() ? `?${params.toString()}` : '';
+    await this['request']<void>(`/queue/${queueId}${query}`, {
+      method: 'DELETE',
     });
   }
 
