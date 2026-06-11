@@ -21,7 +21,6 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
 import {
   SonarrClient,
   RadarrClient,
@@ -2430,13 +2429,16 @@ function formatBytes(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
+// Serializes HTTP request handling so the shared MCP `server` is only ever
+// connected to one transport at a time (see startHttpServer for why).
+let httpQueue: Promise<unknown> = Promise.resolve();
+function runSerialized<T>(task: () => Promise<T>): Promise<T> {
+  const result = httpQueue.then(task, task);
+  httpQueue = result.catch(() => undefined);
+  return result;
+}
+
 async function startHttpServer() {
-  const transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: randomUUID,
-  });
-
-  await server.connect(transport);
-
   const httpServer = createServer(async (req, res) => {
     if (!req.url) {
       res.statusCode = 400;
@@ -2463,12 +2465,28 @@ async function startHttpServer() {
       return;
     }
 
-    try {
-      await transport.handleRequest(req, res);
-    } catch (error) {
-      res.statusCode = 500;
-      res.end(error instanceof Error ? error.message : String(error));
-    }
+    // Stateless HTTP: a fresh transport per request, with no session id issued
+    // (sessionIdGenerator: undefined). This lets MCP clients that do not echo the
+    // Mcp-Session-Id header back — e.g. Claude Code — work, while a fresh transport
+    // per request sidesteps the SDK 1.27.x "stateless transport cannot be reused"
+    // guard. Handling is serialized because the shared `server` can only be
+    // connected to one transport at a time.
+    await runSerialized(async () => {
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined,
+      });
+      try {
+        await server.connect(transport);
+        await transport.handleRequest(req, res);
+      } catch (error) {
+        if (!res.headersSent) {
+          res.statusCode = 500;
+          res.end(error instanceof Error ? error.message : String(error));
+        }
+      } finally {
+        await transport.close();
+      }
+    });
   });
 
   await new Promise<void>((resolve, reject) => {

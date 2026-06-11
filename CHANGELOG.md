@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-06-11
+
+### Fixed
+- HTTP transport now runs in **stateless mode** — a fresh `StreamableHTTPServerTransport` per request with no `Mcp-Session-Id` issued — fixing `400 Bad Request: Mcp-Session-Id header is required` for MCP clients that do not echo the session header back (notably **Claude Code**). The stateful implementation in 1.6.3/1.6.4 only worked for clients that round-tripped the session id. Request handling is serialized so the shared server is only ever connected to one transport at a time, and a fresh transport per request still sidesteps the SDK 1.27.x stateless-reuse guard. Added a regression test that exercises the no-session-header path. Thanks to [@jakefriz](https://github.com/jakefriz) (#15) and [@alejandrosnz](https://github.com/alejandrosnz) (#11) for independently identifying the stateless fix.
+
 ## [1.6.4] - 2026-06-10
 
 ### Security
