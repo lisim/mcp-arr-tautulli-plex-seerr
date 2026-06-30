@@ -34,8 +34,10 @@ Supports both local `stdio` mode for Claude/Codex-style clients and remote HTTP 
 || **Radarr (Movies)** | List movies, search films, trigger downloads, check queue, view releases, review setup |
 || **Lidarr (Music)** | List artists, view albums, search musicians, trigger downloads, check queue, view calendar, review setup |
 || **Prowlarr (Indexers)** | List indexers, search across all trackers, test health, view statistics |
-|| **Tautulli (Play History)** | Server info, active streams, user stats, libraries, recently added |
-|| **Cross-Service** | Status check, unified search across all configured services |
+| **Tautulli (Play History)** | Server info, active streams, user stats, libraries, recently added |
+| **Seerr (Request Management)** | Server health, list/approve/decline requests, request counts, media status, search |
+| **Plex (Media Server)** | Server identity, list library sections with content counts |
+| **Cross-Service** | Status check, unified search across all configured services |
 || **Configuration** | Quality profiles, download clients, naming conventions, health checks, storage info |
 || **TRaSH Guides** | Reference quality profiles, custom formats, naming conventions, compare against recommendations |
 
@@ -48,6 +50,8 @@ Supports both local `stdio` mode for Claude/Codex-style clients and remote HTTP 
   - [Lidarr](https://lidarr.audio/) for music
   - [Prowlarr](https://prowlarr.com/) for indexer management
   - [Tautulli](https://tautulli.com/) for Plex play history (optional)
+  - [Seerr](https://github.com/seerr-team/seerr) for media request management (optional)
+  - [Plex Media Server](https://www.plex.tv/) for media server health checks (optional)
 
 ## Installation
 
