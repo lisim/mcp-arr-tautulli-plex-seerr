@@ -5,7 +5,7 @@
  * the same REST API pattern with X-Api-Key header authentication.
  */
 
-export type ArrService = 'sonarr' | 'radarr' | 'lidarr' | 'prowlarr';
+export type ArrService = 'sonarr' | 'radarr' | 'lidarr' | 'prowlarr' | 'tautulli';
 
 export interface ArrConfig {
   url: string;

@@ -29,6 +29,7 @@ import {
   ArrService,
 } from "./arr-client.js";
 import { trashClient, TrashService } from "./trash-client.js";
+import { TautulliClient } from "./tautulli-client.js";
 
 const SERVER_VERSION = "1.6.3";
 const TRANSPORT_MODE = (process.env.MCP_TRANSPORT || "stdio").toLowerCase();
@@ -49,10 +50,12 @@ const services: ServiceConfig[] = [
   { name: 'radarr', displayName: 'Radarr (Movies)', url: process.env.RADARR_URL, apiKey: process.env.RADARR_API_KEY },
   { name: 'lidarr', displayName: 'Lidarr (Music)', url: process.env.LIDARR_URL, apiKey: process.env.LIDARR_API_KEY },
   { name: 'prowlarr', displayName: 'Prowlarr (Indexers)', url: process.env.PROWLARR_URL, apiKey: process.env.PROWLARR_API_KEY },
+  { name: 'tautulli', displayName: 'Tautulli (Play History)', url: process.env.TAUTULLI_URL, apiKey: process.env.TAUTULLI_API_KEY },
 ];
 
 // Check which services are configured
 const configuredServices = services.filter(s => s.url && s.apiKey);
+const arrServices = configuredServices.filter(s => s.name !== 'tautulli');
 
 // Initialize clients for configured services
 const clients: {
@@ -60,6 +63,7 @@ const clients: {
   radarr?: RadarrClient;
   lidarr?: LidarrClient;
   prowlarr?: ProwlarrClient;
+  tautulli?: TautulliClient;
 } = {};
 
 for (const service of configuredServices) {
@@ -77,6 +81,9 @@ for (const service of configuredServices) {
     case 'prowlarr':
       clients.prowlarr = new ProwlarrClient(config);
       break;
+    case 'tautulli':
+      clients.tautulli = new TautulliClient({ url: service.url!, apiKey: service.apiKey! });
+      break;
   }
 }
 
@@ -85,8 +92,8 @@ const TOOLS: Tool[] = [
   // General tool available for all
   {
     name: "arr_status",
-    description: configuredServices.length > 0
-      ? `Get status of all configured *arr services. Currently configured: ${configuredServices.map(s => s.displayName).join(', ')}`
+    description: arrServices.length > 0
+      ? `Get status of all configured *arr services. Currently configured: ${arrServices.map(s => s.displayName).join(', ')}`
       : "Get status of all supported *arr services. No local *arr services are currently configured, but TRaSH reference tools remain available.",
     inputSchema: {
       type: "object" as const,
@@ -1200,6 +1207,41 @@ async function getPaginatedQueue(
   };
 }
 
+// ── Tautulli Tools ─────────────────────────────────────────
+if (clients.tautulli) {
+  TOOLS.push(
+    {
+      name: "tautulli_status",
+      description: "Get Tautulli server info and health status",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "tautulli_get_activity",
+      description: "Get currently active Plex streams from Tautulli",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "tautulli_get_users",
+      description: "Get all Plex users with play stats from Tautulli",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "tautulli_get_libraries",
+      description: "Get all Plex libraries from Tautulli",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "tautulli_get_recently_added",
+      description: "Get recently added media from Tautulli",
+      inputSchema: {
+        type: "object" as const,
+        properties: { count: { type: "number", description: "Number of items (default 10)" } },
+        required: [],
+      },
+    },
+  );
+}
+
 // Handle list tools request
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return { tools: TOOLS };
@@ -1225,9 +1267,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "arr_status": {
         const statuses: Record<string, unknown> = {};
-        for (const service of configuredServices) {
+        for (const service of arrServices) {
           try {
-            const client = clients[service.name];
+            const client = (clients as any)[service.name];
             if (client) {
               const status = await client.getStatus();
               statuses[service.name] = {
@@ -1260,7 +1302,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_get_quality_profiles":
       case "lidarr_get_quality_profiles": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
         const profiles = await client.getQualityProfiles();
         return {
@@ -1294,7 +1336,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_get_health":
       case "lidarr_get_health": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
         const health = await client.getHealth();
         return {
@@ -1319,7 +1361,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_get_root_folders":
       case "lidarr_get_root_folders": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
         const folders = await client.getRootFoldersDetailed();
         return {
@@ -1345,7 +1387,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_get_download_clients":
       case "lidarr_get_download_clients": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
         const downloadClients = await client.getDownloadClients();
         return {
@@ -1374,7 +1416,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_get_naming":
       case "lidarr_get_naming": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
         const naming = await client.getNamingConfig();
         return {
@@ -1390,7 +1432,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_get_tags":
       case "lidarr_get_tags": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
         const tags = await client.getTags();
         return {
@@ -1409,7 +1451,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "radarr_review_setup":
       case "lidarr_review_setup": {
         const serviceName = name.split('_')[0] as keyof typeof clients;
-        const client = clients[serviceName];
+        const client = (clients as any)[serviceName];
         if (!client) throw new Error(`${serviceName} not configured`);
 
         // Gather all configuration data
@@ -2568,6 +2610,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             }, null, 2),
           }],
         };
+      }
+
+      // ── Tautulli Handlers ─────────────────────────────────────
+      case "tautulli_status": {
+        if (!clients.tautulli) throw new Error("Tautulli not configured");
+        const info = await clients.tautulli.getServerInfo();
+        return jsonText({ server: info.pms_name, version: info.pms_version, platform: info.pms_platform });
+      }
+      case "tautulli_get_activity": {
+        if (!clients.tautulli) throw new Error("Tautulli not configured");
+        const activity = await clients.tautulli.getActivity();
+        return jsonText({ activeStreams: activity.session_count, sessions: activity.sessions });
+      }
+      case "tautulli_get_users": {
+        if (!clients.tautulli) throw new Error("Tautulli not configured");
+        const users = await clients.tautulli.getUsers();
+        return jsonText({ total: users.length, users });
+      }
+      case "tautulli_get_libraries": {
+        if (!clients.tautulli) throw new Error("Tautulli not configured");
+        const libraries = await clients.tautulli.getLibraries();
+        return jsonText({ total: libraries.length, libraries });
+      }
+      case "tautulli_get_recently_added": {
+        if (!clients.tautulli) throw new Error("Tautulli not configured");
+        const count = (args as { count?: number }).count || 10;
+        const items = await clients.tautulli.getRecentlyAdded(count);
+        return jsonText({ count: items.length, items });
       }
 
       default:
