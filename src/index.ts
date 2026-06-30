@@ -1285,24 +1285,6 @@ if (clients.seerr) {
       },
     },
     {
-      name: "seerr_approve_request",
-      description: "Approve a pending media request",
-      inputSchema: {
-        type: "object" as const,
-        properties: { requestId: { type: "number", description: "Request ID to approve" } },
-        required: ["requestId"],
-      },
-    },
-    {
-      name: "seerr_decline_request",
-      description: "Decline a pending media request",
-      inputSchema: {
-        type: "object" as const,
-        properties: { requestId: { type: "number", description: "Request ID to decline" } },
-        required: ["requestId"],
-      },
-    },
-    {
       name: "seerr_get_request_counts",
       description: "Get request counts by status",
       inputSchema: { type: "object" as const, properties: {}, required: [] },
@@ -2762,18 +2744,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { filter, take, mediaType } = (args as { filter?: string; take?: number; mediaType?: string });
         const requests = await clients.seerr.getRequests({ filter, take, mediaType });
         return jsonText({ total: requests.pageInfo.results, requests: requests.results });
-      }
-      case "seerr_approve_request": {
-        if (!clients.seerr) throw new Error("Seerr not configured");
-        const { requestId: approveId } = args as { requestId: number };
-        const approved = await clients.seerr.updateRequestStatus(approveId, "approve");
-        return jsonText({ success: true, request: approved });
-      }
-      case "seerr_decline_request": {
-        if (!clients.seerr) throw new Error("Seerr not configured");
-        const { requestId: declineId } = args as { requestId: number };
-        const declined = await clients.seerr.updateRequestStatus(declineId, "decline");
-        return jsonText({ success: true, request: declined });
       }
       case "seerr_get_request_counts": {
         if (!clients.seerr) throw new Error("Seerr not configured");

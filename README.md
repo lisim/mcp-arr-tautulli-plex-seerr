@@ -347,11 +347,13 @@ The existing service-specific tools remain available for richer local or power-u
 |------|-------------|
 | `seerr_status` | Get Seerr server health status |
 | `seerr_get_requests` | List media requests with optional filters |
-| `seerr_approve_request` | Approve a pending media request |
-| `seerr_decline_request` | Decline a pending media request |
+| `seerr_approve_request` ❌ | ~~Approve a pending media request~~ — Seerr v3.3.0 API key restrictions |
+| `seerr_decline_request` ❌ | ~~Decline a pending media request~~ — Seerr v3.3.0 API key restrictions |
 | `seerr_get_request_counts` | Get request counts by status |
 | `seerr_get_media` | List media with status filters |
 | `seerr_search` | Search for movies, TV shows, and people |
+
+> **Note:** `seerr_approve_request` and `seerr_decline_request` are registered but return 403 on Seerr v3.3.0+ due to API key permission changes. Pending re-implementation via cookie auth.
 
 ### Plex Tools (Media Server)
 
