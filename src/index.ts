@@ -30,6 +30,7 @@ import {
 } from "./arr-client.js";
 import { trashClient, TrashService } from "./trash-client.js";
 import { TautulliClient } from "./tautulli-client.js";
+import { SeerrClient } from "./seerr-client.js";
 
 const SERVER_VERSION = "1.6.3";
 const TRANSPORT_MODE = (process.env.MCP_TRANSPORT || "stdio").toLowerCase();
@@ -39,7 +40,7 @@ const HTTP_PATH = process.env.MCP_PATH || "/mcp";
 
 // Configuration from environment
 interface ServiceConfig {
-  name: ArrService;
+  name: string;
   displayName: string;
   url?: string;
   apiKey?: string;
@@ -51,6 +52,7 @@ const services: ServiceConfig[] = [
   { name: 'lidarr', displayName: 'Lidarr (Music)', url: process.env.LIDARR_URL, apiKey: process.env.LIDARR_API_KEY },
   { name: 'prowlarr', displayName: 'Prowlarr (Indexers)', url: process.env.PROWLARR_URL, apiKey: process.env.PROWLARR_API_KEY },
   { name: 'tautulli', displayName: 'Tautulli (Play History)', url: process.env.TAUTULLI_URL, apiKey: process.env.TAUTULLI_API_KEY },
+  { name: 'seerr', displayName: 'Seerr (Requests)', url: process.env.SEERR_URL, apiKey: process.env.SEERR_API_KEY },
 ];
 
 // Check which services are configured
@@ -64,6 +66,7 @@ const clients: {
   lidarr?: LidarrClient;
   prowlarr?: ProwlarrClient;
   tautulli?: TautulliClient;
+  seerr?: SeerrClient;
 } = {};
 
 for (const service of configuredServices) {
@@ -83,6 +86,9 @@ for (const service of configuredServices) {
       break;
     case 'tautulli':
       clients.tautulli = new TautulliClient({ url: service.url!, apiKey: service.apiKey! });
+      break;
+    case 'seerr':
+      clients.seerr = new SeerrClient({ url: service.url!, apiKey: service.apiKey! });
       break;
   }
 }
@@ -1246,6 +1252,74 @@ if (clients.tautulli) {
         type: "object" as const,
         properties: { limit: { type: "number", description: "Number of items (default 50)" } },
         required: [],
+      },
+    },
+  );
+}
+
+// ── Seerr Tools ──────────────────────────────────────────
+if (clients.seerr) {
+  TOOLS.push(
+    {
+      name: "seerr_status",
+      description: "Get Seerr server health status",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "seerr_get_requests",
+      description: "List media requests with optional filters",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          filter: { type: "string", description: "Filter: pending, approved, processing, available, all" },
+          take: { type: "number", description: "Page size (default 10)" },
+          mediaType: { type: "string", description: "Filter by type: movie, tv, all" },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "seerr_approve_request",
+      description: "Approve a pending media request",
+      inputSchema: {
+        type: "object" as const,
+        properties: { requestId: { type: "number", description: "Request ID to approve" } },
+        required: ["requestId"],
+      },
+    },
+    {
+      name: "seerr_decline_request",
+      description: "Decline a pending media request",
+      inputSchema: {
+        type: "object" as const,
+        properties: { requestId: { type: "number", description: "Request ID to decline" } },
+        required: ["requestId"],
+      },
+    },
+    {
+      name: "seerr_get_request_counts",
+      description: "Get request counts by status",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "seerr_get_media",
+      description: "List media with status filters",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          filter: { type: "string", description: "Filter: available, processing, pending, all" },
+          take: { type: "number", description: "Page size (default 20)" },
+        },
+        required: [],
+      },
+    },
+    {
+      name: "seerr_search",
+      description: "Search for movies, TV shows, and people",
+      inputSchema: {
+        type: "object" as const,
+        properties: { query: { type: "string", description: "Search query" } },
+        required: ["query"],
       },
     },
   );
@@ -2653,6 +2727,48 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const limit = (args as { limit?: number }).limit || 50;
         const history = await clients.tautulli.getHistory(limit);
         return jsonText(history);
+      }
+
+      // ── Seerr Handlers ──
+      case "seerr_status": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const status = await clients.seerr.getStatus();
+        return jsonText(status);
+      }
+      case "seerr_get_requests": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const { filter, take, mediaType } = (args as { filter?: string; take?: number; mediaType?: string });
+        const requests = await clients.seerr.getRequests({ filter, take, mediaType });
+        return jsonText({ total: requests.pageInfo.results, requests: requests.results });
+      }
+      case "seerr_approve_request": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const { requestId: approveId } = args as { requestId: number };
+        const approved = await clients.seerr.updateRequestStatus(approveId, "approve");
+        return jsonText({ success: true, request: approved });
+      }
+      case "seerr_decline_request": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const { requestId: declineId } = args as { requestId: number };
+        const declined = await clients.seerr.updateRequestStatus(declineId, "decline");
+        return jsonText({ success: true, request: declined });
+      }
+      case "seerr_get_request_counts": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const counts = await clients.seerr.getRequestCounts();
+        return jsonText(counts);
+      }
+      case "seerr_get_media": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const { filter: mFilter, take: mTake } = (args as { filter?: string; take?: number });
+        const media = await clients.seerr.getMedia({ filter: mFilter, take: mTake });
+        return jsonText({ total: media.pageInfo.results, media: media.results });
+      }
+      case "seerr_search": {
+        if (!clients.seerr) throw new Error("Seerr not configured");
+        const { query } = args as { query: string };
+        const results = await clients.seerr.search(query);
+        return jsonText(results);
       }
 
       default:
