@@ -31,6 +31,7 @@ import {
 import { trashClient, TrashService } from "./trash-client.js";
 import { TautulliClient } from "./tautulli-client.js";
 import { SeerrClient } from "./seerr-client.js";
+import { PlexClient } from "./plex-client.js";
 
 const SERVER_VERSION = "1.6.3";
 const TRANSPORT_MODE = (process.env.MCP_TRANSPORT || "stdio").toLowerCase();
@@ -53,6 +54,7 @@ const services: ServiceConfig[] = [
   { name: 'prowlarr', displayName: 'Prowlarr (Indexers)', url: process.env.PROWLARR_URL, apiKey: process.env.PROWLARR_API_KEY },
   { name: 'tautulli', displayName: 'Tautulli (Play History)', url: process.env.TAUTULLI_URL, apiKey: process.env.TAUTULLI_API_KEY },
   { name: 'seerr', displayName: 'Seerr (Requests)', url: process.env.SEERR_URL, apiKey: process.env.SEERR_API_KEY },
+  { name: 'plex', displayName: 'Plex (Media Server)', url: process.env.PLEX_URL, apiKey: process.env.PLEX_TOKEN },
 ];
 
 // Check which services are configured
@@ -67,6 +69,7 @@ const clients: {
   prowlarr?: ProwlarrClient;
   tautulli?: TautulliClient;
   seerr?: SeerrClient;
+  plex?: PlexClient;
 } = {};
 
 for (const service of configuredServices) {
@@ -89,6 +92,9 @@ for (const service of configuredServices) {
       break;
     case 'seerr':
       clients.seerr = new SeerrClient({ url: service.url!, apiKey: service.apiKey! });
+      break;
+    case 'plex':
+      clients.plex = new PlexClient({ url: service.url!, token: service.apiKey! });
       break;
   }
 }
@@ -1321,6 +1327,22 @@ if (clients.seerr) {
         properties: { query: { type: "string", description: "Search query" } },
         required: ["query"],
       },
+    },
+  );
+}
+
+// ── Plex Tools ───────────────────────────────────────────
+if (clients.plex) {
+  TOOLS.push(
+    {
+      name: "plex_status",
+      description: "Get Plex Media Server health and identity",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
+    },
+    {
+      name: "plex_get_libraries",
+      description: "List all Plex library sections with content counts",
+      inputSchema: { type: "object" as const, properties: {}, required: [] },
     },
   );
 }
@@ -2769,6 +2791,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { query } = args as { query: string };
         const results = await clients.seerr.search(query);
         return jsonText(results);
+      }
+
+      // ── Plex Handlers ──
+      case "plex_status": {
+        if (!clients.plex) throw new Error("Plex not configured");
+        const identity = await clients.plex.getIdentity();
+        return jsonText({ connected: true, ...identity });
+      }
+      case "plex_get_libraries": {
+        if (!clients.plex) throw new Error("Plex not configured");
+        const libraries = await clients.plex.getLibraries();
+        return jsonText({ total: libraries.length, libraries });
       }
 
       default:

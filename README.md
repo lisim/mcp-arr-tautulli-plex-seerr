@@ -349,6 +349,13 @@ The existing service-specific tools remain available for richer local or power-u
 | `seerr_get_media` | List media with status filters |
 | `seerr_search` | Search for movies, TV shows, and people |
 
+### Plex Tools (Media Server)
+
+| Tool | Description |
+|------|-------------|
+| `plex_status` | Get Plex Media Server health and identity |
+| `plex_get_libraries` | List all Plex library sections with content counts |
+
 ### Configuration Review Tools
 
 These tools are available for Sonarr, Radarr, and Lidarr. Replace `{service}` with the service name (e.g., `sonarr_get_quality_profiles`).
