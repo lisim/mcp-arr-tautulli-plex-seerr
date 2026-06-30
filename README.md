@@ -331,6 +331,7 @@ The existing service-specific tools remain available for richer local or power-u
 | `tautulli_get_users` | List all Plex users with play stats |
 | `tautulli_get_libraries` | List all Plex libraries |
 | `tautulli_get_recently_added` | Get recently added media |
+| `tautulli_get_history` | Get play history with pagination |
 
 ### Configuration Review Tools
 
