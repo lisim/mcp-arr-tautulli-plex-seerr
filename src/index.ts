@@ -1239,6 +1239,15 @@ if (clients.tautulli) {
         required: [],
       },
     },
+    {
+      name: "tautulli_get_history",
+      description: "Get Tautulli play history",
+      inputSchema: {
+        type: "object" as const,
+        properties: { limit: { type: "number", description: "Number of items (default 50)" } },
+        required: [],
+      },
+    },
   );
 }
 
@@ -2638,6 +2647,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const count = (args as { count?: number }).count || 10;
         const items = await clients.tautulli.getRecentlyAdded(count);
         return jsonText({ count: items.length, items });
+      }
+      case "tautulli_get_history": {
+        if (!clients.tautulli) throw new Error("Tautulli not configured");
+        const limit = (args as { limit?: number }).limit || 50;
+        const history = await clients.tautulli.getHistory(limit);
+        return jsonText(history);
       }
 
       default:

@@ -184,7 +184,9 @@ Add to `~/.claude.json`:
         "SONARR_URL": "http://localhost:8989",
         "SONARR_API_KEY": "your-sonarr-api-key",
         "RADARR_URL": "http://localhost:7878",
-        "RADARR_API_KEY": "your-radarr-api-key"
+        "RADARR_API_KEY": "your-radarr-api-key",
+        "TAUTULLI_URL": "http://localhost:8181/tautulli",
+        "TAUTULLI_API_KEY": "your-tautulli-api-key"
       }
     }
   }
