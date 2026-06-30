@@ -163,7 +163,9 @@ Add to your Claude Desktop config file:
         "PROWLARR_URL": "http://localhost:9696",
         "PROWLARR_API_KEY": "your-prowlarr-api-key",
         "TAUTULLI_URL": "http://localhost:8181/tautulli",
-        "TAUTULLI_API_KEY": "your-tautulli-api-key"
+        "TAUTULLI_API_KEY": "your-tautulli-api-key",
+        "SEERR_URL": "https://seerr.yourdomain.com",
+        "SEERR_API_KEY": "your-seerr-api-key"
       }
     }
   }
@@ -186,7 +188,9 @@ Add to `~/.claude.json`:
         "RADARR_URL": "http://localhost:7878",
         "RADARR_API_KEY": "your-radarr-api-key",
         "TAUTULLI_URL": "http://localhost:8181/tautulli",
-        "TAUTULLI_API_KEY": "your-tautulli-api-key"
+        "TAUTULLI_API_KEY": "your-tautulli-api-key",
+        "SEERR_URL": "https://seerr.yourdomain.com",
+        "SEERR_API_KEY": "your-seerr-api-key"
       }
     }
   }
@@ -333,6 +337,18 @@ The existing service-specific tools remain available for richer local or power-u
 | `tautulli_get_recently_added` | Get recently added media |
 | `tautulli_get_history` | Get play history with pagination |
 
+### Seerr Tools (Request Management)
+
+| Tool | Description |
+|------|-------------|
+| `seerr_status` | Get Seerr server health status |
+| `seerr_get_requests` | List media requests with optional filters |
+| `seerr_approve_request` | Approve a pending media request |
+| `seerr_decline_request` | Decline a pending media request |
+| `seerr_get_request_counts` | Get request counts by status |
+| `seerr_get_media` | List media with status filters |
+| `seerr_search` | Search for movies, TV shows, and people |
+
 ### Configuration Review Tools
 
 These tools are available for Sonarr, Radarr, and Lidarr. Replace `{service}` with the service name (e.g., `sonarr_get_quality_profiles`).
@@ -384,7 +400,7 @@ npm run watch
 npm run build
 
 # Run locally
-SONARR_URL="http://localhost:8989" SONARR_API_KEY="your-key" TAUTULLI_URL="http://localhost:8181/tautulli" TAUTULLI_API_KEY="your-key" node dist/index.js
+SONARR_URL="http://localhost:8989" SONARR_API_KEY="your-key" TAUTULLI_URL="http://localhost:8181/tautulli" TAUTULLI_API_KEY="your-key" SEERR_URL="https://seerr.yourdomain.com" SEERR_API_KEY="your-key" node dist/index.js
 ```
 
 ## Troubleshooting
