@@ -30,13 +30,14 @@ Supports both local `stdio` mode for Claude/Codex-style clients and remote HTTP 
 
 | Category | Capabilities |
 |----------|-------------|
-| **Sonarr (TV)** | List series, view episodes, search shows, trigger downloads, check queue, view calendar, review setup |
-| **Radarr (Movies)** | List movies, search films, trigger downloads, check queue, view releases, review setup |
-| **Lidarr (Music)** | List artists, view albums, search musicians, trigger downloads, check queue, view calendar, review setup |
-| **Prowlarr (Indexers)** | List indexers, search across all trackers, test health, view statistics |
-| **Cross-Service** | Status check, unified search across all configured services |
-| **Configuration** | Quality profiles, download clients, naming conventions, health checks, storage info |
-| **TRaSH Guides** | Reference quality profiles, custom formats, naming conventions, compare against recommendations |
+|| **Sonarr (TV)** | List series, view episodes, search shows, trigger downloads, check queue, view calendar, review setup |
+|| **Radarr (Movies)** | List movies, search films, trigger downloads, check queue, view releases, review setup |
+|| **Lidarr (Music)** | List artists, view albums, search musicians, trigger downloads, check queue, view calendar, review setup |
+|| **Prowlarr (Indexers)** | List indexers, search across all trackers, test health, view statistics |
+|| **Tautulli (Play History)** | Server info, active streams, user stats, libraries, recently added |
+|| **Cross-Service** | Status check, unified search across all configured services |
+|| **Configuration** | Quality profiles, download clients, naming conventions, health checks, storage info |
+|| **TRaSH Guides** | Reference quality profiles, custom formats, naming conventions, compare against recommendations |
 
 ## Prerequisites
 
@@ -46,6 +47,7 @@ Supports both local `stdio` mode for Claude/Codex-style clients and remote HTTP 
   - [Radarr](https://radarr.video/) for movies
   - [Lidarr](https://lidarr.audio/) for music
   - [Prowlarr](https://prowlarr.com/) for indexer management
+  - [Tautulli](https://tautulli.com/) for Plex play history (optional)
 
 ## Installation
 
@@ -159,7 +161,9 @@ Add to your Claude Desktop config file:
         "LIDARR_URL": "http://localhost:8686",
         "LIDARR_API_KEY": "your-lidarr-api-key",
         "PROWLARR_URL": "http://localhost:9696",
-        "PROWLARR_API_KEY": "your-prowlarr-api-key"
+        "PROWLARR_API_KEY": "your-prowlarr-api-key",
+        "TAUTULLI_URL": "http://localhost:8181/tautulli",
+        "TAUTULLI_API_KEY": "your-tautulli-api-key"
       }
     }
   }
@@ -311,10 +315,20 @@ The existing service-specific tools remain available for richer local or power-u
 
 | Tool | Description |
 |------|-------------|
-| `prowlarr_get_indexers` | List all configured indexers |
-| `prowlarr_search` | Search across all indexers |
-| `prowlarr_test_indexers` | Test all indexers and return health status |
-| `prowlarr_get_stats` | Get indexer statistics (queries, grabs, failures) |
+|| `prowlarr_get_indexers` | List all configured indexers |
+|| `prowlarr_search` | Search across all indexers |
+|| `prowlarr_test_indexers` | Test all indexers and return health status |
+|| `prowlarr_get_stats` | Get indexer statistics (queries, grabs, failures) |
+
+### Tautulli Tools (Play History)
+
+| Tool | Description |
+|------|-------------|
+| `tautulli_status` | Get Tautulli server info and health |
+| `tautulli_get_activity` | View currently active Plex streams |
+| `tautulli_get_users` | List all Plex users with play stats |
+| `tautulli_get_libraries` | List all Plex libraries |
+| `tautulli_get_recently_added` | Get recently added media |
 
 ### Configuration Review Tools
 
@@ -367,7 +381,7 @@ npm run watch
 npm run build
 
 # Run locally
-SONARR_URL="http://localhost:8989" SONARR_API_KEY="your-key" node dist/index.js
+SONARR_URL="http://localhost:8989" SONARR_API_KEY="your-key" TAUTULLI_URL="http://localhost:8181/tautulli" TAUTULLI_API_KEY="your-key" node dist/index.js
 ```
 
 ## Troubleshooting
